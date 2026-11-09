@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>OmniShot</string>
+	<key>CFBundleDisplayName</key>
+	<string>OmniShot</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.omnishot.OmniShot</string>
+	<key>CFBundleExecutable</key>
+	<string>OmniShot</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh_CN</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>OmniShot 需要屏幕录制权限来截取屏幕内容。</string>
+	<!-- 留空：仓库还没定新地址。空着时 Updater.isAvailable 为假，菜单里不出现「检查更新…」，
+	     应用照常运行；拿到新地址后填回来即可，Sparkle 的其余配置都不用动。 -->
+	<key>SUFeedURL</key>
+	<string></string>
+	<key>SUPublicEDKey</key>
+	<string>RkEtvfkFSA2c5E/7aSKK3a8TgSGHQQcBdpE8IPBYvpg=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+</dict>
+</plist>
