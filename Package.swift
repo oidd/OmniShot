@@ -16,9 +16,17 @@ let package = Package(
             name: "OmniShot",
             dependencies: ["OmniShotCore", .product(name: "Sparkle", package: "Sparkle")],
             // The icons are the libraries' own SVG files; build-app.sh copies the bundle they end up in.
-            resources: [.copy("Icons"), .copy("Models")],
+            resources: [.copy("Icons"), .copy("Models"), .copy("Recommends")],
             // Sparkle.framework is embedded in OmniShot.app/Contents/Frameworks by scripts/build-app.sh.
-            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
+            // `-platform_version` pins the minimum OS to 14 but records the SDK version as 26.2. SwiftPM
+            // otherwise records the deployment target (14.0) as the SDK, which makes macOS fall back to
+            // the old window chrome: the sidebar toggle sits in the titlebar and the split view's
+            // material/geometry differ from DockMinimize (which is linked against 26.2).
+            linkerSettings: [.unsafeFlags([
+                "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks",
+                "-Xlinker", "-platform_version", "-Xlinker", "macos",
+                "-Xlinker", "14.0", "-Xlinker", "26.2",
+            ])]
         ),
         .testTarget(name: "OmniShotCoreTests", dependencies: ["OmniShotCore"]),
     ],

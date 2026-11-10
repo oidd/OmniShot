@@ -50,27 +50,6 @@ struct SettingsIcon: View {
 
 // MARK: - Page furniture
 
-/// The page's own title, fixed above the scrolling content the way a pinned header would be — without
-/// the pinned header's trick of painting over what scrolls underneath it.
-struct SettingsPageHeader: View {
-    let title: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(Color.accentColor)
-            Divider().opacity(0.4)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 28)
-        // The window is full-size-content, so SwiftUI already reserves the 32pt title bar above this;
-        // 8 more lines the title up with the first sidebar row, which sits 10pt below the same edge.
-        .padding(.top, 8)
-        .padding(.bottom, 14)
-    }
-}
-
 /// One card: a rounded box whose rows are separated by hairlines the caller places itself.
 struct SettingsCard<Content: View>: View {
     @ViewBuilder var content: Content
@@ -193,6 +172,9 @@ struct SettingsPermissionCard: View {
 
 /// The sidebar is hand-drawn rather than a `List`: the selection is a capsule that slides between rows
 /// and an accent wash that unfolds behind the label, neither of which a `List` row will do.
+///
+/// Kept in the same shape as DockMinimize's sidebar: a clear background over the split view's material,
+/// 8pt side/top padding, 4pt row spacing, and 36pt rows.
 struct SettingsSidebar: View {
     @Binding var pane: SettingsPane
     @Namespace private var indicator
@@ -205,9 +187,10 @@ struct SettingsSidebar: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.top, 10)
+            .padding(.top, 8)
             .padding(.bottom, 12)
         }
+        .background(.clear)
     }
 }
 
@@ -219,9 +202,13 @@ private struct SettingsSidebarRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovered = false
     /// How far the accent wash has unfolded, 0 → 1.
-    @State private var wash: CGFloat = 0
+    @State private var bgProgress: CGFloat = 0
 
     private var isSelected: Bool { selection == pane }
+
+    private var backgroundFill: Color {
+        Color.accentColor.opacity(colorScheme == .dark ? 0.22 : 0.15)
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -243,14 +230,15 @@ private struct SettingsSidebarRow: View {
 
             GeometryReader { geo in
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.22 : 0.15))
-                    .frame(width: geo.size.width * wash, height: geo.size.height, alignment: .leading)
+                    .fill(isSelected ? backgroundFill : Color.clear)
+                    .frame(width: geo.size.width * bgProgress,
+                           height: geo.size.height,
+                           alignment: .leading)
             }
             .padding(.leading, 12)
             .padding(.trailing, 4)
-            .opacity(isSelected ? 1 : 0)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 11) {
                 SettingsIcon(asset: pane.icon, size: 17)
                     .foregroundStyle(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.85) : Color.secondary))
                     .frame(width: 22, alignment: .center)
@@ -266,28 +254,30 @@ private struct SettingsSidebarRow: View {
         }
         .frame(height: 36)
         .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) { isHovered = hovering }
+        }
+        .onTapGesture {
+            guard !isSelected else { return }
+            // The capsule uses a spring, the wash uses easeOut.
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { selection = pane }
+        }
+        .onChange(of: isSelected) { _, newValue in
+            if newValue {
+                bgProgress = 0
+                withAnimation(.easeOut(duration: 0.32)) { bgProgress = 1 }
+            } else {
+                // The row on its way out just fades; only the arriving row unfolds.
+                withAnimation(.easeIn(duration: 0.12)) { bgProgress = 0 }
+            }
+        }
+        .onAppear { bgProgress = isSelected ? 1 : 0 }
+        // Hover feedback on the rows that are not selected.
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(isHovered && !isSelected ? Color.primary.opacity(0.05) : Color.clear)
                 .padding(.leading, 12)
                 .padding(.trailing, 4)
         )
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) { isHovered = hovering }
-        }
-        .onTapGesture {
-            guard !isSelected else { return }
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { selection = pane }
-        }
-        .onChange(of: isSelected) { _, selected in
-            if selected {
-                wash = 0
-                withAnimation(.easeOut(duration: 0.32)) { wash = 1 }
-            } else {
-                // The row on its way out just fades; only the arriving row unfolds.
-                withAnimation(.easeIn(duration: 0.12)) { wash = 0 }
-            }
-        }
-        .onAppear { wash = isSelected ? 1 : 0 }
     }
 }

@@ -185,6 +185,21 @@ enum Icon {
         return nil
     }()
 
+    /// The full-colour app icons on the About page's 作者的奇思妙想 list. Unlike the toolbar assets these
+    /// are not templates: each tool ships its own light and dark artwork.
+    static func recommendationImage(named name: String, dark: Bool) -> NSImage? {
+        let themed = "\(name)_\(dark ? "dark" : "light")"
+        if let url = resources?.url(forResource: themed, withExtension: "png", subdirectory: "Recommends"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
+        if let url = resources?.url(forResource: name, withExtension: "png", subdirectory: "Recommends"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
+        return nil
+    }
+
     /// The file an icon is drawn from. The libraries' icons are their own SVG files; the menu bar's
     /// artwork is whatever the project owner exported, which has been a PNG mask as often as an SVG.
     /// A template is rendered from its alpha channel alone, so a flat PNG needs no tracing into paths.

@@ -3,7 +3,7 @@ import ServiceManagement
 import OmniShotCore
 import SwiftUI
 
-enum ShortcutTarget: Equatable { case capture, translateCapture, textTranslate, ocrCapture, pinClipboard, togglePins, scanCode }
+enum ShortcutTarget: Equatable { case capture, translateCapture, textTranslate, ocrCapture, pinClipboard, togglePins, closePins, scanCode }
 
 /// Every change is written through right away; there is no save button.
 final class SettingsModel: ObservableObject {
@@ -61,6 +61,7 @@ final class SettingsModel: ObservableObject {
     @Published var ocrCaptureShortcut = Settings.shared.ocrCaptureShortcut { didSet { settings.ocrCaptureShortcut = ocrCaptureShortcut; shortcutsChanged() } }
     @Published var pinShortcut = Settings.shared.pinClipboardShortcut { didSet { settings.pinClipboardShortcut = pinShortcut; shortcutsChanged() } }
     @Published var togglePinsShortcut = Settings.shared.togglePinsShortcut { didSet { settings.togglePinsShortcut = togglePinsShortcut; shortcutsChanged() } }
+    @Published var closePinsShortcut = Settings.shared.closePinsShortcut { didSet { settings.closePinsShortcut = closePinsShortcut; shortcutsChanged() } }
     @Published var scanCodeShortcut = Settings.shared.scanCodeShortcut { didSet { settings.scanCodeShortcut = scanCodeShortcut; shortcutsChanged() } }
     @Published var recording: ShortcutTarget?
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled { didSet { applyLaunchAtLogin() } }
@@ -256,6 +257,7 @@ final class SettingsModel: ObservableObject {
                 case .ocrCapture: self.ocrCaptureShortcut = shortcut
                 case .pinClipboard: self.pinShortcut = shortcut
                 case .togglePins: self.togglePinsShortcut = shortcut
+                case .closePins: self.closePinsShortcut = shortcut
                 case .scanCode: self.scanCodeShortcut = shortcut
                 case nil: break
                 }
@@ -280,9 +282,15 @@ extension Notification.Name {
 
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
-    /// The size the window opens at, and the size it is put back to every time it is shown.
-    static let contentSize = CGSize(width: 860, height: 600)
+    /// The size the window opens at. DockMinimize opens at 700×480; a slightly larger default leaves
+    /// the settings pages room without changing any of the sidebar/window behavior.
+    static let contentSize = CGSize(width: 820, height: 560)
+    /// The smallest frame the window can be dragged to, matching DockMinimize's minimum.
+    static let minimumFrameSize = CGSize(width: 700, height: 480)
     private var model = SettingsModel()
+    /// Built once, the way DockMinimize keeps its settings window: rebuilding the hosting controller on
+    /// every open left the first layout (and its hit testing) a frame behind the one on screen.
+    private var hosting: NSHostingController<SettingsView>?
     /// Remembered between openings so the window comes back to the page you were last on. None until
     /// the first open, which lands on 权限设置 when something is still not granted.
     private var lastPane: SettingsPane?
@@ -291,27 +299,36 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: Self.contentSize),
                               styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.contentMinSize = CGSize(width: 720, height: 520)
         // No title bar text: the page name at the top of the content is the title.
         window.title = "OmniShot 设置"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.minSize = Self.minimumFrameSize
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.delegate = self
+        window.setContentSize(Self.contentSize)
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
+    /// DockMinimize's clamp: the window cannot be dragged below 700×480 even if AppKit's min size were
+    /// bypassed by a live resize. The settings cards are the same ones DockMinimize uses at that size.
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        guard sender === window else { return frameSize }
+        return NSSize(width: max(frameSize.width, Self.minimumFrameSize.width),
+                      height: max(frameSize.height, Self.minimumFrameSize.height))
+    }
+
     func present() {
-        // Reload so the window reflects what is stored now.
-        model = SettingsModel()
         let pane = lastPane ?? (PermissionCenter.shared.screenRecording ? .shortcuts : .permissions)
         lastPane = pane
         install(pane: pane)
         window?.center()
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
         // `activate()` only asks to become the active app, and a menu bar app is usually not active at the
         // moment its menu item is picked. Without this the window is ordered front but stays *behind*
@@ -322,21 +339,22 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     /// Puts the settings view in the window and gives the window its size back.
     ///
-    /// The size has to be set again *after* `contentViewController` is assigned. With the controller's
-    /// `sizingOptions` cleared, the window takes the SwiftUI view's own fitting size — and a view with no
-    /// frame of its own reports almost nothing, so the window came back as a 1×1 pixel square parked in
-    /// the middle of the screen. That is invisible, and reads exactly like「设置点了没反应」. Keeping the
-    /// size here rather than relying on the view means a future edit to `SettingsView` can't bring it back.
+    /// The hosting controller is created once. Reassigning `contentViewController` on every open (and
+    /// clearing `sizingOptions`) made the sidebar's drawn rows and its hit-testing disagree until the
+    /// next layout pass — hovering 通用 could hit 关于. Keep the view alive, like DockMinimize.
     ///
     /// Split out of `present()` so `--check settings` can run it without putting a window on screen.
     @discardableResult
     func install(pane: SettingsPane) -> CGSize {
-        let controller = NSHostingController(rootView: SettingsView(model: model, pane: pane) { [weak self] in
-            self?.lastPane = $0
-        })
-        controller.sizingOptions = []
-        window?.contentViewController = controller
-        window?.setContentSize(Self.contentSize)
+        if hosting == nil {
+            let view = SettingsView(model: model, pane: pane) { [weak self] in
+                self?.lastPane = $0
+            }
+            let controller = NSHostingController(rootView: view)
+            window?.contentViewController = controller
+            window?.setContentSize(Self.contentSize)
+            hosting = controller
+        }
         return window?.contentView?.frame.size ?? .zero
     }
 

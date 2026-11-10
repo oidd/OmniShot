@@ -19,14 +19,20 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             SettingsSidebar(pane: $pane)
-                .navigationSplitViewColumnWidth(min: 176, ideal: 190, max: 214)
+                .navigationTitle("OmniShot")
+                .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 220)
         } detail: {
-            VStack(spacing: 0) {
-                SettingsPageHeader(title: pane.title)
-                ScrollView(.vertical, showsIndicators: true) {
-                    page
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 28)
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section(header: pageHeader) {
+                        VStack(alignment: .leading, spacing: 20) {
+                            page
+                            Spacer()
+                        }
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 32)
+                        .padding(.top, 12)
+                    }
                 }
             }
             .background(Color(nsColor: .windowBackgroundColor))
@@ -34,9 +40,34 @@ struct SettingsView: View {
         .onChange(of: pane) { _, new in onPaneChange(new) }
         .onAppear { permissions.startMonitoring() }
         .onDisappear { permissions.stopMonitoring() }
-        // Without a frame of its own the view reports no size worth speaking of, and a window handed this
-        // as its contentViewController collapses to a pixel. See `SettingsWindowController.install`.
-        .frame(minWidth: 720, minHeight: 520)
+        // Match DockMinimize's layout envelope; the window owns the default size and its 700×480 floor.
+        .frame(minWidth: 200, idealWidth: 820, maxWidth: 900,
+               minHeight: 200, idealHeight: 560, maxHeight: 900)
+    }
+
+    /// The pinned page header from DockMinimize: page title, the About app header when needed, a hairline,
+    /// and a background that reaches up over the titlebar so scrolled content cannot show through.
+    private var pageHeader: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(pane.title)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(Color.accentColor)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+
+            if pane == .about {
+                aboutHeader
+                    .padding(.bottom, 16)
+            }
+
+            Divider().opacity(0.4)
+        }
+        .padding(.horizontal, 32)
+        .padding(.top, -10)
+        .background(
+            Color(nsColor: .windowBackgroundColor)
+                .padding(.top, -100)
+        )
     }
 
     @ViewBuilder private var page: some View {
@@ -99,7 +130,9 @@ struct SettingsView: View {
                 SettingsRowDivider()
                 shortcutRow("隐藏 / 显示全部贴图", .togglePins, $model.togglePinsShortcut)
                 SettingsRowDivider()
-                shortcutRow("扫描屏幕上的二维码", .scanCode, $model.scanCodeShortcut)
+                shortcutRow("关闭全部贴图", .closePins, $model.closePinsShortcut)
+                SettingsRowDivider()
+                shortcutRow("扫描屏幕上二维码/条形码", .scanCode, $model.scanCodeShortcut)
             }
         }
     }
@@ -445,47 +478,64 @@ struct SettingsView: View {
                         .labelsHidden()
                 }
             }
-        }
-    }
 
-    // MARK: - 关于
-
-    private var aboutPage: some View {
-        VStack(spacing: 18) {
             SettingsCard {
-                HStack(spacing: 16) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("OmniShot")
-                            .font(.system(size: 19, weight: .semibold))
-                        Text("截图、标注、贴图、长截图，外加原位翻译")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                        Text("版本 \(Updater.versionString)")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Spacer(minLength: 0)
+                SettingsRow("检查更新", detail: "当前版本：\(appVersion)") {
+                    Button("立即检查") { Updater.shared.checkForUpdates() }
+                        .controlSize(.small)
+                        .disabled(!Updater.isAvailable)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-            }
-
-            SettingsCard {
+                SettingsRowDivider()
                 SettingsToggleRow(title: "自动检查更新",
                                   detail: Updater.isAvailable ? "发现新版本只在菜单里提示，由你决定何时安装" : "暂未开通，新版本要手动下载",
                                   isOn: $model.automaticallyChecksForUpdates)
                     .disabled(!Updater.isAvailable)
-                SettingsRowDivider()
-                SettingsRow("手动检查") {
-                    Button("检查更新…") { Updater.shared.checkForUpdates() }
-                        .controlSize(.small)
-                        .disabled(!Updater.isAvailable)
-                }
             }
+        }
+    }
+
+    /// The short version, without the build number: About shows it in the title badge, General in the
+    /// update row. `Updater.versionString` still carries the build for places that need both.
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+    }
+
+    // MARK: - 关于
+
+    /// The app header lives inside the pinned page header, exactly where DockMinimize puts it.
+    private var aboutHeader: some View {
+        HStack(spacing: 16) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("OmniShot")
+                        .font(.system(size: 19, weight: .semibold))
+                    Text("v\(appVersion)")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.primary.opacity(0.08),
+                                    in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+                Text("截图、标注、贴图、长截图，外加原位翻译")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 14) {
+                    aboutLink("访问网站", systemImage: "globe", url: "https://ivean.com/omnishot/")
+                    aboutLink("赞助", systemImage: "heart.fill", url: "https://ivean.com/donate/")
+                }
+                .padding(.top, 2)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var aboutPage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            RecommendationsSection()
 
             SettingsCard {
                 SettingsRow("感谢Shotlate的开源") {
@@ -497,6 +547,22 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    /// The two text links in the About header. DockMinimize puts them under the tagline, in the accent
+    /// colour, with the same plain style; the page is not a control surface otherwise.
+    private func aboutLink(_ title: String, systemImage: String, url: String) -> some View {
+        Button {
+            if let url = URL(string: url) { NSWorkspace.shared.open(url) }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: systemImage)
+                Text(title)
+            }
+            .font(.system(size: 12, weight: .medium))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.accentColor)
     }
 }
 

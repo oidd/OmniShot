@@ -25,7 +25,18 @@ enum DevTools {
             }
             app.run()
         }
-        if args.count >= 3, args[1] == "--check" {
+        if args.count >= 4, args[1] == "--site-shots" {
+            // Clean, feature-specific shots for the website. Kept separate from --ui-demo, which
+            // deliberately crams every tool into one sequence and is too busy for marketing.
+            let app = NSApplication.shared
+            app.setActivationPolicy(.accessory)
+            Task { @MainActor in
+                await SiteShots.run(input: URL(fileURLWithPath: args[2]), outputDirectory: URL(fileURLWithPath: args[3]))
+                exit(0)
+            }
+            app.run()
+        }
+        if args.count >= 4, args[1] == "--check" {
             let app = NSApplication.shared
             app.setActivationPolicy(.accessory)
             Task { @MainActor in

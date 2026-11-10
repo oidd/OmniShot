@@ -31,7 +31,6 @@ enum FeatureChecks {
         ("pins-hide", pinsHide),
         ("pin-keys", pinKeys),
         ("pin-clipboard", pinClipboard),
-        ("countdown", countdown),
         ("tool-colors", toolColors),
         ("item-styles", itemStyles),
         ("delete-item", deleteItem),
@@ -442,26 +441,6 @@ enum FeatureChecks {
         expect(card.isRecording && ToolbarKeys.key(for: "rectangle") == "2", "keys with ⌘ are refused")
         h.window.makeFirstResponder(h.view)
         expect(!card.isRecording, "clicking elsewhere stops waiting")
-    }
-
-    @MainActor static func countdown() async {
-        let countdown = Countdown()
-        var ticks: [Int] = []
-        var fired = false
-        let started = Date()
-        countdown.start(seconds: 2, tick: { ticks.append($0) }, fire: { fired = true })
-        expect(countdown.isRunning && ticks == [2], "starts at the full count")
-        while !fired, Date().timeIntervalSince(started) < 4 { try? await Task.sleep(for: .milliseconds(50)) }
-        let elapsed = Date().timeIntervalSince(started)
-        expect(fired && ticks == [2, 1], "ticks down and fires (ticks \(ticks))")
-        expect(elapsed > 1.8 && elapsed < 2.6, "fires after about 2 s (\(String(format: "%.2f", elapsed)) s)")
-        expect(!countdown.isRunning, "stops after firing")
-
-        fired = false
-        countdown.start(seconds: 1, tick: { _ in }, fire: { fired = true })
-        countdown.cancel()
-        try? await Task.sleep(for: .milliseconds(1300))
-        expect(!fired, "cancel prevents firing")
     }
 
     @MainActor static func render(_ view: NSView) -> NSBitmapImageRep? {
@@ -1871,8 +1850,15 @@ enum FeatureChecks {
         // fact. `install` is `present` minus showing the window, so this runs without putting anything up.
         let controller = SettingsWindowController.shared
         let size = controller.install(pane: .permissions)
-        expect(size.width >= 720 && size.height >= 520,
+        expect(size.width >= 700 && size.height >= 480,
                "窗口装上设置界面后仍有正常尺寸（\(Int(size.width))×\(Int(size.height))）")
+        if let window = controller.window {
+            let floor = controller.windowWillResize(window, to: NSSize(width: 100, height: 100))
+            expect(floor.width >= 700 && floor.height >= 480,
+                   "设置窗口不能拖到 700×480 以下（\(Int(floor.width))×\(Int(floor.height))）")
+            expect(window.minSize.width >= 700 && window.minSize.height >= 480,
+                   "设置窗口的最小尺寸已经固定")
+        }
         expect(controller.capturableWindowNumbers == [],
                "没显示出来的设置窗口不会被算进截图")
         controller.window?.orderOut(nil)

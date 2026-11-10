@@ -14,6 +14,7 @@ struct Shortcut: Codable, Equatable {
     static let defaultOCRCapture = Shortcut(keyCode: UInt32(kVK_ANSI_O), carbonModifiers: UInt32(optionKey | shiftKey), keyLabel: "O")
     static let defaultPinClipboard = Shortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(optionKey | shiftKey), keyLabel: "V")
     static let defaultTogglePins = Shortcut(keyCode: UInt32(kVK_ANSI_H), carbonModifiers: UInt32(optionKey | shiftKey), keyLabel: "H")
+    static let defaultClosePins = Shortcut(keyCode: UInt32(kVK_ANSI_C), carbonModifiers: UInt32(optionKey | shiftKey), keyLabel: "C")
 
     init(keyCode: UInt32, carbonModifiers: UInt32, keyLabel: String) {
         self.keyCode = keyCode
@@ -389,6 +390,11 @@ final class Settings {
     var togglePinsShortcut: Shortcut? {
         get { optionalShortcut("pin.toggleShortcut", default: .defaultTogglePins) }
         set { setOptionalShortcut(newValue, "pin.toggleShortcut") }
+    }
+
+    var closePinsShortcut: Shortcut? {
+        get { optionalShortcut("pin.closeAllShortcut", default: .defaultClosePins) }
+        set { setOptionalShortcut(newValue, "pin.closeAllShortcut") }
     }
 
     /// Not set by default: scanning is an occasional action and shouldn't take a key combination unasked.

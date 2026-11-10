@@ -17,8 +17,7 @@ final class Updater: NSObject, SPUStandardUserDriverDelegate {
     }
 
     /// `.build/debug/OmniShot` and the self-checks aren't an app bundle, so there is nothing to replace.
-    /// An empty `SUFeedURL` counts as unavailable too: the repo address is still to be decided, and
-    /// Sparkle can do nothing without a feed — the same test hides the menu item that would open it.
+    /// An empty `SUFeedURL` counts as unavailable too; the feed now lives in the website's `updates` folder.
     static var isAvailable: Bool {
         guard Bundle.main.bundleURL.pathExtension == "app",
               let feed = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else { return false }

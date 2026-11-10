@@ -13,11 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pinClipboardItem: NSMenuItem!
     private var closePinsItem: NSMenuItem!
     private var togglePinsItem: NSMenuItem!
-    private var cancelDelayItem: NSMenuItem!
     private var scanItem: NSMenuItem!
     private var updateReadyItem: NSMenuItem!
     private var checkUpdatesItem: NSMenuItem!
-    private let countdown = Countdown()
     /// The recognition heartbeat (see `startEngineHeartbeat`); kept so it cannot be deallocated under us.
     private var heartbeatTimer: Timer?
 
@@ -47,24 +45,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(updateReadyItem)
         captureItem = item("截图", #selector(capture))
         menu.addItem(captureItem)
-        let delayItem = NSMenuItem(title: "延时截图", action: nil, keyEquivalent: "")
-        let delayMenu = NSMenu()
-        for seconds in [3, 5, 10] {
-            let i = item("\(seconds) 秒后", #selector(delayedCapture(_:)))
-            i.tag = seconds
-            delayMenu.addItem(i)
-        }
-        delayItem.submenu = delayMenu
-        menu.addItem(delayItem)
-        cancelDelayItem = item("取消延时截图", #selector(cancelDelayedCapture))
-        menu.addItem(cancelDelayItem)
         translateCaptureItem = item("截图翻译", #selector(translateCapture))
         menu.addItem(translateCaptureItem)
         textTranslateItem = item("输入翻译", #selector(textTranslate))
         menu.addItem(textTranslateItem)
         ocrCaptureItem = item("文字识别", #selector(ocrCapture))
         menu.addItem(ocrCaptureItem)
-        scanItem = item("扫描屏幕上的二维码 / 条形码", #selector(scanCodes))
+        scanItem = item("扫描屏幕上二维码/条形码", #selector(scanCodes))
         menu.addItem(scanItem)
         menu.addItem(.separator())
         pinClipboardItem = item("从剪贴板贴图", #selector(pinClipboard))
@@ -182,24 +169,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let toggle = settings.togglePinsShortcut
         let toggleOK = HotKeyCenter.shared.register(.togglePins, shortcut: toggle) { PinManager.shared.toggleHidden() }
-        registerScanHotKey()
         togglePinsShortcutLabel = toggle.map { toggleOK ? "（\($0.displayString)）" : "（快捷键 \($0.displayString) 已被占用）" } ?? ""
+
+        let closePins = settings.closePinsShortcut
+        let closeOK = HotKeyCenter.shared.register(.closePins, shortcut: closePins) { PinManager.shared.closeAll() }
+        closePinsShortcutLabel = closePins.map { closeOK ? "（\($0.displayString)）" : "（快捷键 \($0.displayString) 已被占用）" } ?? ""
+        registerScanHotKey()
     }
 
     private var togglePinsShortcutLabel = ""
+    private var closePinsShortcutLabel = ""
 
     private func registerScanHotKey() {
         let scan = Settings.shared.scanCodeShortcut
         let ok = HotKeyCenter.shared.register(.scanCode, shortcut: scan) { CodeScanner.scanScreens() }
-        scanItem.title = "扫描屏幕上的二维码 / 条形码" + (scan.map { ok ? "（\($0.displayString)）" : "（快捷键 \($0.displayString) 已被占用）" } ?? "")
+        scanItem.title = "扫描屏幕上二维码/条形码" + (scan.map { ok ? "（\($0.displayString)）" : "（快捷键 \($0.displayString) 已被占用）" } ?? "")
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         let pins = PinManager.shared
         closePinsItem.isEnabled = pins.hasPins
         togglePinsItem.isEnabled = pins.hasPins
+        closePinsItem.title = "关闭全部贴图" + closePinsShortcutLabel
         togglePinsItem.title = (pins.isHidingAll ? "显示全部贴图" : "隐藏全部贴图") + togglePinsShortcutLabel
-        cancelDelayItem.isHidden = !countdown.isRunning
         let pending = Updater.shared.pendingVersion
         updateReadyItem.isHidden = pending == nil
         updateReadyItem.title = "有新版本 \(pending ?? "")…"
@@ -227,37 +219,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { CaptureSession.begin(autoOCR: true) }
     }
 
-    /// Counts down on the menu bar icon, so menus and hover states can be opened before the screen freezes.
-    @objc private func delayedCapture(_ sender: NSMenuItem) {
-        startDelayedCapture(seconds: sender.tag)
-    }
-
-    private func startDelayedCapture(seconds: Int) {
-        let button = statusItem.button
-        countdown.start(seconds: seconds, tick: { remaining in
-            button?.imagePosition = .imageLeading
-            button?.title = " \(remaining)"
-            self.statusItem.length = NSStatusItem.variableLength
-        }, fire: { [weak self] in
-            self?.resetStatusButton()
-            CaptureSession.begin()
-        })
-    }
-
     @objc private func scanCodes() {
         // Let the menu close first so it doesn't cover a code.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { CodeScanner.scanScreens() }
-    }
-
-    @objc private func cancelDelayedCapture() {
-        countdown.cancel()
-        resetStatusButton()
-    }
-
-    private func resetStatusButton() {
-        statusItem.button?.title = ""
-        statusItem.button?.imagePosition = .imageOnly
-        statusItem.length = NSStatusItem.squareLength
     }
 
     @objc private func pinClipboard() { PinManager.shared.pinClipboard() }

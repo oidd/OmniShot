@@ -30,12 +30,12 @@
 	<true/>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>OmniShot 需要屏幕录制权限来截取屏幕内容。</string>
-	<!-- 留空：仓库还没定新地址。空着时 Updater.isAvailable 为假，菜单里不出现「检查更新…」，
-	     应用照常运行；拿到新地址后填回来即可，Sparkle 的其余配置都不用动。 -->
+	<!-- The appcast lives in the website's updates folder, next to the DMG. The download URL inside
+	     it points at https://www.ivean.com/omnishot/updates/OmniShot.dmg. -->
 	<key>SUFeedURL</key>
-	<string></string>
+	<string>https://www.ivean.com/omnishot/updates/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>RkEtvfkFSA2c5E/7aSKK3a8TgSGHQQcBdpE8IPBYvpg=</string>
+	<string>NGnhJJSxvF4+z9nwtZiQ/khhHNMcP76cfpOHAXZ2zQE=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUScheduledCheckInterval</key>

@@ -1343,6 +1343,14 @@ final class PinView: NSView {
     var testing_rotationAngle: CGFloat? { rotation == nil ? nil : -CGFloat.pi / 2 * rotationProgress }
     func testing_finishRotation() { finishRotation() }
     var testing_handleButton: PinHandleButton { handleButton }
+
+    /// Website shots: show the right-hand button column without waiting for a pointer.
+    func testing_showButtons() {
+        pointerInside = true
+        pointerOnPicture = true
+        layoutButtons()
+        needsDisplay = true
+    }
     /// Whether the four buttons are on screen right now (the pencil keeps them up for its whole session).
     var testing_buttonsVisible: Bool {
         !closeButton.isHidden && !toolsButton.isHidden && !rotateButton.isHidden && !handleButton.isHidden

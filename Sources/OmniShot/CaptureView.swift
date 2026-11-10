@@ -472,8 +472,10 @@ final class CaptureView: NSView {
             dim.append(NSBezierPath(rect: focus))
             dim.windingRule = .evenOdd
         }
-        NSColor.black.withAlphaComponent(0.4).setFill()
-        dim.fill()
+        if !testing_hidesDim {
+            NSColor.black.withAlphaComponent(0.4).setFill()
+            dim.fill()
+        }
         guard let focus else { return }
 
         if hasSelection {
@@ -1535,6 +1537,10 @@ final class CaptureView: NSView {
 
     var testing_items: [AnnotationItem] { items }
     var testing_tool: Tool? { tool }
+    /// Website shots: skip the dimming outside the selection so the product can sit on white.
+    var testing_hidesDim = false
+    /// Website shots: drop the annotation selection but keep the tool and its style bar.
+    func testing_deselectItem() { select(nil) }
     /// 工具栏是不是已经摆出来了；文字识别快捷键进去时不应该摆（摆了就是一闪而过的那一下）。
     var testing_toolbarVisible: Bool { !toolbar.isHidden }
     /// 工具条上有没有这个按钮；贴图编辑时的三个「例外」靠它守着。

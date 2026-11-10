@@ -1,5 +1,10 @@
 .build/
+.build-*/
 build/
 .swiftpm/
 *.xcodeproj/
 .DS_Store
+.claude/
+.vscode/
+website-source/
+website/updates/*.dmg

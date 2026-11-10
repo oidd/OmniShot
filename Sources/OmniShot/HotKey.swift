@@ -11,6 +11,7 @@ final class HotKeyCenter {
         case translateCapture = 5
         case textTranslate = 6
         case ocrCapture = 7
+        case closePins = 8
     }
 
     static let shared = HotKeyCenter()
